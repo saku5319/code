@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SakuCodes - オンラインコードエディタ</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.3/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.3/theme/material.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            margin: 0;
+            background-color: #282c34;
+            color: white;
+        }
+        #menu-bar {
+            display: flex;
+            align-items: center;
+            background-color: #3a3f47;
+            padding: 10px;
+            border-bottom: 2px solid #444;
+        }
+        #menu-bar h1 {
+            margin: 0;
+            font-size: 20px;
+            color: white;
+            margin-right: 20px;
+        }
+        #menu-bar button {
+            background-color: transparent;
+            border: none;
+            color: white;
+            padding: 10px;
+            cursor: pointer;
+        }
+        #menu-bar button:hover {
+            background-color: #4b4e54;
+        }
+        #sidebar {
+            width: 250px;
+            background-color: #3a3f47;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        #sidebar h2 {
+            font-size: 20px;
+            margin: 0 0 10px 0;
+        }
+        #file-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        #file-list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px;
+            cursor: pointer;
+            border-radius: 4px;
+            margin: 2px 0;
+        }
+        #file-list li:hover {
+            background-color: #4b4e54;
+        }
+        .menu-icon {
+            cursor: pointer;
+        }
+        #editor-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .CodeMirror {
+            height: calc(100vh - 220px);
+            border: 1px solid #444;
+            background-color: #2e323b;
+        }
+        #preview {
+            border: 1px solid #444;
+            background-color: #ffffff;
+            height: calc(100vh - 220px);
+            padding: 10px;
+            overflow: auto;
+            color: black;
+        }
+        #preview-label {
+            text-align: center;
+            font-size: 18px;
+            margin: 10px 0;
+        }
+        #add-file-button, #add-folder-button {
+            background-color: #007acc;
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-bottom: 10px;
+        }
+        #add-file-button:hover, #add-folder-button:hover {
+            background-color: #005f99;
+        }
+        .menu {
+            position: absolute;
+            background-color: #3a3f47;
+            border-radius: 4px;
+            padding: 10px;
+            border: 2px solid white;
+            display: none;
+            z-index: 1000;
+        }
+        .menu-item {
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+        .menu-item:hover {
+            background-color: #4b4e54;
+        }
+        .autocomplete-list {
+            position: absolute;
+            background-color: #3a3f47;
+            border: 1px solid #444;
+            z-index: 1000;
+            border-radius: 4px;
+            margin-top: 5px;
+            display: none;
+        }
+        .autocomplete-item {
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+        .autocomplete-item:hover {
+            background-color: #4b4e54;
+        }
+        .folder {
+            font-weight: bold;
+        }
+        .hidden {
+            display: none; /* 非表示クラス */
+        }
+        #tab-container {
+            display: flex;
+            background-color: #3a3f47;
+            padding: 5px;
+            border-bottom: 2px solid #444;
+        }
+        .tab {
+            padding: 10px;
+            cursor: pointer;
+            margin-right: 5px;
+            background-color: #3a3f47;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+        }
+        .tab:hover {
+            background-color: #4b4e54;
+        }
+        .tab.active {
+            background-color: #007acc;
+            color: white;
+            border: 1px solid #007acc;
+        }
+        .close-tab {
+            margin-left: 5px;
+            cursor: pointer;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="menu-bar">
+        <h1>SakuCodes</h1>
+        <button onclick="showFileMenu(event)">ファイル</button>
+        <button onclick="showEditMenu(event)">編集</button>
+    </div>
+
+    <div id="editor-container">
+        <div id="tab-container"></div>
+        <div style="display: flex;">
+            <div id="sidebar">
+                <h2>ファイルエクスプローラー</h2>
+                <ul id="file-list">
+                    <li onclick="toggleFolder(event, 'root-folder')"><span class="folder">Root Folder</span><span class="menu-icon" onclick="showMenu(event, 'Root Folder')">⋮</span></li>
+                    <ul id="root-folder" class="hidden">
+                        <li onclick="openFile('index.html')">index.html<span class="menu-icon" onclick="showMenu(event, 'index.html')">⋮</span></li>
+                        <li onclick="openFile('style.css')">style.css<span class="menu-icon" onclick="showMenu(event, 'style.css')">⋮</span></li>
+                        <li onclick="openFile('script.js')">script.js<span class="menu-icon" onclick="showMenu(event, 'script.js')">⋮</span></li>
+                    </ul>
+                </ul>
+                <button id="add-file-button" onclick="addFile()">ファイル追加</button>
+                <button id="add-folder-button" onclick="addFolder()">フォルダ追加</button>
+            </div>
+            <div style="flex-grow: 1;">
+                <textarea id="editor"></textarea>
+                <div id="preview-label">プレビュー</div>
+                <div id="preview"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="context-menu" class="menu"></div>
+    <div id="autocomplete-list" class="autocomplete-list"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.3/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.3/mode/xml/xml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.3/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.3/mode/css/css.min.js"></script>
+    <script>
+        const editor = CodeMirror.fromTextArea(document.getElementById("editor"), {
+            lineNumbers: true,
+            mode: "text/html",
+            theme: "material",
+            lineWrapping: true,
+            extraKeys: {
+                "Ctrl-Space": "autocomplete",
+                "Enter": function(cm) {
+                    cm.execCommand("newlineAndIndent");
+                },
+                ">": function(cm) {
+                    const cursor = cm.getCursor();
+                    const token = cm.getTokenAt(cursor);
+                    if (token.type === "tag" && token.string.startsWith("<") && !token.string.includes("/")) {
+                        const tagName = token.string.replace(/<|>/g, "");
+                        cm.replaceRange(`</${tagName}>`, cursor);
+                        cm.setCursor({line: cursor.line, ch: cursor.ch + tagName.length + 3});
+                    }
+                },
+                "{" : function(cm) {
+                    showAutocomplete(cm);
+                }
+            }
+        });
+
+        function updatePreview() {
+            const code = editor.getValue();
+            const previewFrame = document.getElementById("preview");
+            previewFrame.innerHTML = code;
+        }
+
+        editor.on("change", function() {
+            updatePreview();
+        });
+
+        function openFile(filename) {
+            const fileContents = {
+                'index.html': '<!DOCTYPE html>\n<html lang="ja">\n<head>\n    <meta charset="UTF-8">\n    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n    <title>Document</title>\n</head>\n<body>\n    <h1>Hello World</h1>\n</body>\n</html>',
+                'style.css': 'body {\n    background-color: #f0f0f0;\n}',
+                'script.js': 'console.log("Hello, world!");'
+            };
+            editor.setValue(fileContents[filename] || '');
+            addTab(filename);
+            activateTab(filename);
+        }
+
+        function addTab(filename) {
+            const tabContainer = document.getElementById("tab-container");
+            const tab = document.createElement("div");
+            tab.className = "tab";
+            tab.id = `tab-${filename}`;
+            tab.innerHTML = `${filename}<span class="close-tab" onclick="closeTab(event, '${filename}')">×</span>`;
+            tab.onclick = function() {
+                editor.setValue(document.getElementById(`content-${filename}`).value);
+                activateTab(filename);
+            };
+            tabContainer.appendChild(tab);
+        }
+
+        function closeTab(event, filename) {
+            event.stopPropagation();
+            const tab = document.getElementById(`tab-${filename}`);
+            if (tab) {
+                tab.remove();
+            }
+            // 他のタブをアクティブにする処理を追加できます
+        }
+
+        function activateTab(filename) {
+            const tabs = document.getElementsByClassName("tab");
+            for (let tab of tabs) {
+                tab.classList.remove("active");
+            }
+            const activeTab = document.getElementById(`tab-${filename}`);
+            if (activeTab) {
+                activeTab.classList.add("active");
+            }
+        }
+
+        function addFile() {
+            const fileName = prompt("ファイル名を入力してください:");
+            if (fileName) {
+                const li = document.createElement("li");
+                li.innerHTML = `${fileName} <span class="menu-icon" onclick="showMenu(event, '${fileName}')">⋮</span>`;
+                li.onclick = function() { openFile(fileName); };
+                document.getElementById("file-list").appendChild(li);
+            }
+        }
+
+        function addFolder() {
+            const folderName = prompt("フォルダ名を入力してください:");
+            if (folderName) {
+                const li = document.createElement("li");
+                li.innerHTML = `<span class="folder">${folderName}</span> <span class="menu-icon" onclick="showMenu(event, '${folderName}')">⋮</span>`;
+                li.onclick = function() { toggleFolder(event, folderName); };
+                document.getElementById("file-list").appendChild(li);
+            }
+        }
+
+        function toggleFolder(event, folderId) {
+            const folder = document.getElementById(folderId);
+            if (folder) {
+                folder.classList.toggle("hidden");
+            }
+        }
+
+        function showMenu(event, name) {
+            event.stopPropagation();
+            const menu = document.getElementById("context-menu");
+            menu.style.display = "block";
+            menu.style.left = `${event.clientX}px`;
+            menu.style.top = `${event.clientY}px`;
+
+            menu.innerHTML = `
+                <div class="menu-item" onclick="deleteFile('${name}')">削除</div>
+                <div class="menu-item" onclick="renameFile('${name}')">名前を変更</div>
+            `;
+        }
+
+        function deleteFile(name) {
+            const fileList = document.getElementById("file-list");
+            const li = Array.from(fileList.children).find(child => child.innerText.includes(name));
+            if (li) {
+                fileList.removeChild(li);
+            }
+            hideMenu();
+        }
+
+        function renameFile(name) {
+            const newName = prompt("新しいファイル名を入力してください:", name);
+            if (newName) {
+                const fileList = document.getElementById("file-list");
+                const li = Array.from(fileList.children).find(child => child.innerText.includes(name));
+                if (li) {
+                    li.firstChild.textContent = newName;
+                }
+            }
+            hideMenu();
+        }
+
+        function hideMenu() {
+            const menu = document.getElementById("context-menu");
+            menu.style.display = "none";
+        }
+
+        window.onclick = hideMenu;
+
+        // オートコンプリートの機能
+        const tags = ['html', 'head', 'body', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'div', 'span', 'a', 'ul', 'li', 'ol', 'table', 'tr', 'td', 'th', 'style', 'script'];
+
+        function showAutocomplete(cm) {
+            const cursor = cm.getCursor();
+            const token = cm.getTokenAt(cursor);
+            if (token.string.startsWith("<")) {
+                const list = tags.filter(tag => tag.startsWith(token.string.slice(1)));
+                if (list.length) {
+                    const autocompleteList = document.getElementById("autocomplete-list");
+                    autocompleteList.innerHTML = "";
+                    list.forEach(tag => {
+                        const item = document.createElement("div");
+                        item.className = "autocomplete-item";
+                        item.textContent = `<${tag}>`;
+                        item.onclick = function() {
+                            cm.replaceRange(`<${tag}>`, cursor);
+                            cm.setCursor(cursor.line, cursor.ch + tag.length + 2);
+                            hideAutocomplete();
+                        };
+                        autocompleteList.appendChild(item);
+                    });
+                    autocompleteList.style.display = "block";
+                    autocompleteList.style.left = `${cm.cursorCoords(true).left}px`;
+                    autocompleteList.style.top = `${cm.cursorCoords(true).top + 20}px`;
+                }
+            }
+        }
+
+        function hideAutocomplete() {
+            const autocompleteList = document.getElementById("autocomplete-list");
+            autocompleteList.style.display = "none";
+        }
+
+        document.getElementById("editor").addEventListener("keydown", function(event) {
+            if (event.key === "Escape") {
+                hideAutocomplete();
+            }
+        });
+
+        // メニューの表示関数
+        function showFileMenu(event) {
+            event.stopPropagation();
+            const menu = document.getElementById("context-menu");
+            menu.style.display = "block";
+            menu.style.left = `${event.clientX}px`;
+            menu.style.top = `${event.clientY}px`;
+            menu.innerHTML = `
+                <div class="menu-item" onclick="loadFile()">ファイル読み込み</div>
+                <div class="menu-item" onclick="downloadFile()">ダウンロード</div>
+                <div class="menu-item" onclick="addFile()">新規ファイル</div>
+            `;
+        }
+
+        function showEditMenu(event) {
+            event.stopPropagation();
+            const menu = document.getElementById("context-menu");
+            menu.style.display = "block";
+            menu.style.left = `${event.clientX}px`;
+            menu.style.top = `${event.clientY}px`;
+            menu.innerHTML = `
+                <div class="menu-item" onclick="undo()">元に戻る</div>
+                <div class="menu-item" onclick="redo()">先に進む</div>
+                <div class="menu-item" onclick="selectAll()">すべて選択</div>
+            `;
+        }
+
+        // ファイル読み込み、ダウンロード機能
+        function loadFile() {
+            alert("ファイルを読み込みます。");
+            hideMenu();
+        }
+
+        function downloadFile() {
+            const filename = "example.html"; // ここでファイル名を指定
+            const text = editor.getValue();
+            const blob = new Blob([text], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+            hideMenu();
+        }
+
+        function undo() {
+            editor.undo();
+            hideMenu();
+        }
+
+        function redo() {
+            editor.redo();
+            hideMenu();
+        }
+
+        function selectAll() {
+            editor.execCommand("selectAll");
+            hideMenu();
+        }
+
+        updatePreview();
+    </script>
+</body>
+</html>
